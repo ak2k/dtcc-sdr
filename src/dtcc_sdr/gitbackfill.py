@@ -138,7 +138,7 @@ def prefetch(repo: Path, blobs: list[str]) -> None:
             "origin",
             "--no-tags",
             "--no-write-fetch-head",
-            "--filter=blob:none",
+            # No --filter here: a blob:none filter would strip the very blobs asked for.
             "--stdin",
             stdin=("\n".join(blobs) + "\n").encode(),
         )
