@@ -19,7 +19,6 @@ Output path, one file per regulator and day::
 from __future__ import annotations
 
 import csv
-import io
 import re
 import zipfile
 from typing import TYPE_CHECKING, Literal
@@ -172,16 +171,62 @@ def _member(zf: zipfile.ZipFile) -> str:
     return names[0]
 
 
-def _header(zf: zipfile.ZipFile, member: str) -> list[str]:
-    with zf.open(member) as fh:
-        line = io.TextIOWrapper(fh, encoding="utf-8-sig", newline="").readline()
-    return next(csv.reader([line]))
+def _header(path: Path) -> list[str]:
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        return next(csv.reader([fh.readline()]))
+
+
+def convert_csv(
+    csv_path: Path,
+    out_file: Path,
+    *,
+    memory_limit: str | None = None,
+    threads: int | None = None,
+) -> Converted:
+    """Convert one DTCC CSV to ``out_file`` (atomic: written to a temp name first).
+
+    Raises:
+        ExternalServiceError: if a value fails its cast or the CSV is malformed.
+
+    """
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_pq = out_file.with_name(".tmp-data.parquet")
+    header = _header(csv_path)
+    select = ",\n  ".join(_select_exprs(header))
+    con = duckdb.connect()
+    try:
+        if memory_limit:
+            _ = con.execute(f"SET memory_limit='{memory_limit}'")
+        if threads:
+            _ = con.execute(f"SET threads={int(threads)}")
+        row = con.execute(
+            f"""
+            COPY (
+              SELECT {select}
+              FROM read_csv('{csv_path}', header=true, all_varchar=true, delim=',',
+                            quote='"', escape='"', strict_mode=true)
+            ) TO '{tmp_pq}' (FORMAT PARQUET, COMPRESSION zstd)
+            """  # noqa: S608  # identifiers are quoted DTCC headers, paths are ours
+        ).fetchone()
+        _ = tmp_pq.replace(out_file)
+    except duckdb.Error as exc:
+        raise ExternalServiceError(f"cannot convert {csv_path}: {exc}") from exc
+    finally:
+        con.close()
+        tmp_pq.unlink(missing_ok=True)
+    rows = int(row[0]) if row else 0  # pyright: ignore[reportAny]
+    extra = sum(1 for h in header if COLUMN_TYPES.get(h) == "capped")
+    return Converted(rows=rows, columns=len(header) + extra)
 
 
 def convert_zip(
-    zip_path: Path, out_file: Path, *, memory_limit: str | None = None, threads: int | None = None
+    zip_path: Path,
+    out_file: Path,
+    *,
+    memory_limit: str | None = None,
+    threads: int | None = None,
 ) -> Converted:
-    """Convert ``zip_path`` to ``out_file`` (atomic: written to a temp name first).
+    """Extract the ZIP's CSV beside ``out_file`` and convert it.
 
     Raises:
         ExternalServiceError: if the ZIP is unreadable or a value fails its cast.
@@ -189,41 +234,17 @@ def convert_zip(
     """
     out_file.parent.mkdir(parents=True, exist_ok=True)
     tmp_csv = out_file.with_name(".tmp-data.csv")
-    tmp_pq = out_file.with_name(".tmp-data.parquet")
     try:
         try:
-            with zipfile.ZipFile(zip_path) as zf:
-                member = _member(zf)
-                header = _header(zf, member)
-                with zf.open(member) as src, tmp_csv.open("wb") as dst:
-                    while chunk := src.read(1 << 20):
-                        _ = dst.write(chunk)
+            with (
+                zipfile.ZipFile(zip_path) as zf,
+                zf.open(_member(zf)) as src,
+                tmp_csv.open("wb") as dst,
+            ):
+                while chunk := src.read(1 << 20):
+                    _ = dst.write(chunk)
         except (OSError, zipfile.BadZipFile) as exc:
             raise ExternalServiceError(f"cannot read {zip_path}: {exc}") from exc
-        select = ",\n  ".join(_select_exprs(header))
-        con = duckdb.connect()
-        try:
-            if memory_limit:
-                _ = con.execute(f"SET memory_limit='{memory_limit}'")
-            if threads:
-                _ = con.execute(f"SET threads={int(threads)}")
-            row = con.execute(
-                f"""
-                COPY (
-                  SELECT {select}
-                  FROM read_csv('{tmp_csv}', header=true, all_varchar=true, delim=',',
-                                quote='"', escape='"', strict_mode=true)
-                ) TO '{tmp_pq}' (FORMAT PARQUET, COMPRESSION zstd)
-                """  # noqa: S608  # identifiers are quoted DTCC headers, paths are ours
-            ).fetchone()
-        except duckdb.Error as exc:
-            raise ExternalServiceError(f"cannot convert {zip_path}: {exc}") from exc
-        finally:
-            con.close()
-        _ = tmp_pq.replace(out_file)
+        return convert_csv(tmp_csv, out_file, memory_limit=memory_limit, threads=threads)
     finally:
         tmp_csv.unlink(missing_ok=True)
-        tmp_pq.unlink(missing_ok=True)
-    rows = int(row[0]) if row else 0  # pyright: ignore[reportAny]
-    extra = sum(1 for h in header if COLUMN_TYPES.get(h) == "capped")
-    return Converted(rows=rows, columns=len(header) + extra)
