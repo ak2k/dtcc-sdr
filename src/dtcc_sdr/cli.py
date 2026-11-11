@@ -126,7 +126,10 @@ def backfill_git(
     manifest = store.read_manifest()
     files = gitbackfill.list_files(repo)
     overlap = gitbackfill.compare_overlap(files, manifest, archive) if archive else None
-    written = gitbackfill.backfill(repo, manifest, settings.data_dir, settings.work_dir, files)
+    failed: dict[str, str] = {}
+    written = gitbackfill.backfill(
+        repo, manifest, settings.data_dir, settings.work_dir, files, failed=failed
+    )
     if written:
         readme = card.write_card(settings.hf_repo_id, manifest, settings.data_dir)
         store.commit(
@@ -143,6 +146,7 @@ def backfill_git(
                 "first": days[0] if days else None,
                 "last": days[-1] if days else None,
                 "recovered_days": days,
+                "failed": failed,
                 "overlap": overlap.model_dump() if overlap else None,
             }
         )

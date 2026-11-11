@@ -122,7 +122,6 @@ class Converted(BaseModel):
 
     rows: int
     columns: int
-    trimmed_rows: int = 0
 
 
 def column_name(source: str) -> str:
@@ -178,34 +177,6 @@ def _header(path: Path) -> list[str]:
         return next(csv.reader([fh.readline()]))
 
 
-def _trim_wide_rows(csv_path: Path, dest: Path) -> int:
-    """Copy ``csv_path`` to ``dest``, dropping empty fields past the header width.
-
-    Returns the number of rows trimmed. A row whose extra fields are not all
-    empty raises, since dropping them would lose data.
-    """
-    trimmed = 0
-    with (
-        csv_path.open(encoding="utf-8-sig", newline="") as src,
-        dest.open("w", encoding="utf-8", newline="") as dst,
-    ):
-        reader = csv.reader(src)
-        writer = csv.writer(dst, quoting=csv.QUOTE_ALL, lineterminator="\n")
-        header = next(reader)
-        writer.writerow(header)
-        width = len(header)
-        for line, row in enumerate(reader, 2):
-            if len(row) > width:
-                if any(row[width:]):
-                    raise ExternalServiceError(
-                        f"{csv_path.name} line {line}: {len(row)} fields with non-empty extras"
-                    )
-                row = row[:width]  # noqa: PLW2901
-                trimmed += 1
-            writer.writerow(row)
-    return trimmed
-
-
 def convert_csv(
     csv_path: Path,
     out_file: Path,
@@ -215,27 +186,15 @@ def convert_csv(
 ) -> Converted:
     """Convert one DTCC CSV to ``out_file`` (atomic: written to a temp name first).
 
-    Some early-2024 CFTC files have rows with two extra empty trailing fields,
-    which a strict CSV read rejects; those rows are trimmed to the header width
-    and the conversion retried.
+    A row wider than the header fails the conversion: in the early-2024 CFTC
+    files the extra fields sit mid-row and shift later values, so no fixed trim
+    recovers the row safely.
 
     Raises:
         ExternalServiceError: if a value fails its cast or the CSV is malformed.
 
     """
-    try:
-        return _copy(csv_path, out_file, memory_limit=memory_limit, threads=threads)
-    except ExternalServiceError:
-        trimmed_csv = out_file.with_name(".tmp-trimmed.csv")
-        try:
-            trimmed = _trim_wide_rows(csv_path, trimmed_csv)
-            if not trimmed:
-                raise
-            result = _copy(trimmed_csv, out_file, memory_limit=memory_limit, threads=threads)
-        finally:
-            trimmed_csv.unlink(missing_ok=True)
-        log.warning("convert.trimmed_wide_rows", file=csv_path.name, rows=trimmed)
-        return result.model_copy(update={"trimmed_rows": trimmed})
+    return _copy(csv_path, out_file, memory_limit=memory_limit, threads=threads)
 
 
 def _copy(

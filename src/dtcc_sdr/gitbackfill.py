@@ -172,9 +172,19 @@ def compare_overlap(files: list[GitFile], manifest: Manifest, archive: Path) -> 
 
 
 def backfill(
-    repo: Path, manifest: Manifest, data_dir: Path, work_dir: Path, files: list[GitFile]
+    repo: Path,
+    manifest: Manifest,
+    data_dir: Path,
+    work_dir: Path,
+    files: list[GitFile],
+    *,
+    failed: dict[str, str] | None = None,
 ) -> dict[str, Path]:
-    """Convert committed CSVs for CFTC days not held; return the partitions written."""
+    """Convert committed CSVs for CFTC days not held; return the partitions written.
+
+    A day whose CSV does not convert is left out and recorded in ``failed``
+    (day -> reason) rather than stopping the other days.
+    """
     todo = [f for f in files if manifest.get("cftc", f.day) is None]
     log.info("backfill.plan", days=len(todo))
     prefetch(repo, [f.blob for f in todo])
@@ -187,6 +197,11 @@ def backfill(
         partition = convert.partition_path("cftc", item.day)
         try:
             result = convert.convert_csv(csv_path, data_dir / partition)
+        except ExternalServiceError as exc:
+            if failed is not None:
+                failed[item.day.isoformat()] = str(exc).splitlines()[-1][:200]
+            log.warning("backfill.failed", day=str(item.day), error=str(exc)[:200])
+            continue
         finally:
             csv_path.unlink(missing_ok=True)
         manifest.put(

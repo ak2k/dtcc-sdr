@@ -108,18 +108,18 @@ def test_whitespace_padding_is_trimmed_before_casts(tmp_path: Path):
     ) == [(None, Decimal("25000000"), False)]
 
 
-def test_rows_with_extra_empty_trailing_fields_are_trimmed(tmp_path: Path):
-    # Early-2024 CFTC files carry some rows with two extra empty trailing fields.
+def test_rows_wider_than_the_header_fail(tmp_path: Path):
+    # Early-2024 CFTC files have rows with two extra fields that shift later values.
     wide = ("2,NEWT,2026-11-09T22:51:43Z,FALSE,2027-06-30,1,0.1,,3,x,,",)
     zip_path = make_zip(tmp_path / "CFTC_CUMULATIVE_RATES_2024_01_27.zip", (*ROWS, *wide))
-    result = convert.convert_zip(zip_path, tmp_path / "o" / "data.parquet")
-    assert (result.rows, result.trimmed_rows) == (3, 1)
+    with pytest.raises(ExternalServiceError):
+        _ = convert.convert_zip(zip_path, tmp_path / "o" / "data.parquet")
 
 
 def test_rows_with_extra_non_empty_fields_fail(tmp_path: Path):
     wide = ("2,NEWT,2026-11-09T22:51:43Z,FALSE,2027-06-30,1,0.1,,3,x,,oops",)
     zip_path = make_zip(tmp_path / "CFTC_CUMULATIVE_RATES_2024_01_27.zip", (*ROWS, *wide))
-    with pytest.raises(ExternalServiceError, match="non-empty"):
+    with pytest.raises(ExternalServiceError):
         _ = convert.convert_zip(zip_path, tmp_path / "o" / "data.parquet")
 
 
