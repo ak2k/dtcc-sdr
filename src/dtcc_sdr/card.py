@@ -85,7 +85,7 @@ ds = load_dataset("{repo_id}", "rates", split="train", streaming=True)
 
 The data is DTCC's public dissemination, mirrored unmodified apart from typing.
 Use of it is subject to DTCC's terms of use for the PPD site and data
-(<https://www.dtcc.com/terms-of-use>); this mirror does not grant any right that
+(<https://www.dtcc.com/terms>); this mirror does not grant any right that
 those terms do not. Values are as disseminated, including later corrections
 and cancellations as separate messages; notionals above the cap are capped.
 
@@ -119,7 +119,7 @@ def _frontmatter() -> str:
     return f"""---
 license: other
 license_name: dtcc-terms-of-use
-license_link: https://www.dtcc.com/terms-of-use
+license_link: https://www.dtcc.com/terms
 pretty_name: DTCC public swap data (interest-rate cumulative files)
 tags:
 - finance
