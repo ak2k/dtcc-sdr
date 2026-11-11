@@ -110,14 +110,24 @@ def test_whitespace_padding_is_trimmed_before_casts(tmp_path: Path):
 
 def test_rows_with_extra_empty_trailing_fields_are_trimmed(tmp_path: Path):
     # Early-2024 CFTC files carry some rows with two extra empty trailing fields.
-    wide = ('2,NEWT,2026-11-09T22:51:43Z,FALSE,2027-06-30,1,0.1,,3,x,,',)
+    wide = ("2,NEWT,2026-11-09T22:51:43Z,FALSE,2027-06-30,1,0.1,,3,x,,",)
     zip_path = make_zip(tmp_path / "CFTC_CUMULATIVE_RATES_2024_01_27.zip", (*ROWS, *wide))
     result = convert.convert_zip(zip_path, tmp_path / "o" / "data.parquet")
     assert (result.rows, result.trimmed_rows) == (3, 1)
 
 
 def test_rows_with_extra_non_empty_fields_fail(tmp_path: Path):
-    wide = ('2,NEWT,2026-11-09T22:51:43Z,FALSE,2027-06-30,1,0.1,,3,x,,oops',)
+    wide = ("2,NEWT,2026-11-09T22:51:43Z,FALSE,2027-06-30,1,0.1,,3,x,,oops",)
     zip_path = make_zip(tmp_path / "CFTC_CUMULATIVE_RATES_2024_01_27.zip", (*ROWS, *wide))
     with pytest.raises(ExternalServiceError, match="non-empty"):
         _ = convert.convert_zip(zip_path, tmp_path / "o" / "data.parquet")
+
+
+def test_quoted_empty_text_is_null(tmp_path: Path):
+    quoted = ('"3","NEWT","2026-11-09T22:51:43Z","","2027-06-30","1","0.1","","3",""',)
+    zip_path = make_zip(tmp_path / "SEC_CUMULATIVE_RATES_2026_11_09.zip", quoted)
+    out = tmp_path / "o" / "data.parquet"
+    _ = convert.convert_zip(zip_path, out)
+    assert _read(out, "SELECT other_payment_amount, brand_new_column FROM '{path}'") == [
+        (None, None)
+    ]
