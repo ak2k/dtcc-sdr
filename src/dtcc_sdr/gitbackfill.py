@@ -127,9 +127,14 @@ def blob_id(data: bytes) -> str:
     return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()  # noqa: S324  # git object id
 
 
-def prefetch(repo: Path, blobs: list[str]) -> None:
-    """Fetch the missing blobs of a partial clone in one pack, not one request each."""
-    if blobs:
+def prefetch(repo: Path, blobs: list[str], batch: int = 25) -> None:
+    """Fetch missing blobs of a partial clone in batches, not one request per blob.
+
+    One request for a few hundred large blobs sat for minutes with no bytes
+    received; batches of 25 return in about 30 s each and show progress.
+    """
+    for start in range(0, len(blobs), batch):
+        chunk = blobs[start : start + batch]
         _ = _run(
             repo,
             "-c",
@@ -140,8 +145,9 @@ def prefetch(repo: Path, blobs: list[str]) -> None:
             "--no-write-fetch-head",
             # No --filter here: a blob:none filter would strip the very blobs asked for.
             "--stdin",
-            stdin=("\n".join(blobs) + "\n").encode(),
+            stdin=("\n".join(chunk) + "\n").encode(),
         )
+        log.info("backfill.prefetch", done=start + len(chunk), total=len(blobs))
 
 
 def compare_overlap(files: list[GitFile], manifest: Manifest, archive: Path) -> Overlap:
