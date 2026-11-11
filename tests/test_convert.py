@@ -33,7 +33,8 @@ def test_types_capped_flag_and_rows(tmp_path: Path):
     assert out.name == "data.parquet"
     assert "regulator=cftc/date=2026-11-09" in str(out)
 
-    types = dict(_read(out, "SELECT column_name, column_type FROM (DESCRIBE SELECT * FROM '{path}')"))
+    described = _read(out, "SELECT column_name, column_type FROM (DESCRIBE SELECT * FROM '{path}')")
+    types = {str(name): str(kind) for name, kind in described}
     assert types["dissemination_identifier"] == "BIGINT"
     assert types["event_timestamp"] == "TIMESTAMP WITH TIME ZONE"
     assert types["amendment_indicator"] == "BOOLEAN"

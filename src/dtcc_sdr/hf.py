@@ -109,7 +109,9 @@ class HfStore:
                 f"{self.repo_id} exists but has no {MANIFEST_PATH}; run `dtcc-sdr seed` first"
             ) from exc
         except HfHubHTTPError as exc:
-            raise ExternalServiceError(f"failed to read the manifest of {self.repo_id}: {exc}") from exc
+            raise ExternalServiceError(
+                f"failed to read the manifest of {self.repo_id}: {exc}"
+            ) from exc
         return _parse(Path(local).read_text(encoding="utf-8"), self.repo_id)
 
     def ensure_repo(self) -> None:
@@ -117,7 +119,9 @@ class HfStore:
         try:
             _ = create_repo(self.repo_id, repo_type="dataset", exist_ok=True, token=self.token)
         except HfHubHTTPError as exc:
-            raise ExternalServiceError(f"failed to ensure dataset repo {self.repo_id}: {exc}") from exc
+            raise ExternalServiceError(
+                f"failed to ensure dataset repo {self.repo_id}: {exc}"
+            ) from exc
 
     def commit(self, files: dict[str, Path], manifest: Manifest, message: str) -> None:
         """One ``create_commit`` carrying every new partition and the manifest."""

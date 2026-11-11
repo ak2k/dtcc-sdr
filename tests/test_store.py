@@ -93,7 +93,9 @@ def _archive(root: Path) -> list[Path]:
         for p in paths:
             body = p.read_bytes()
             rel = p.relative_to(root).as_posix()
-            writer.writerow([rel, f"https://x/{p.name}", len(body), hashlib.sha256(body).hexdigest(), "t"])
+            writer.writerow(
+                [rel, f"https://x/{p.name}", len(body), hashlib.sha256(body).hexdigest(), "t"]
+            )
     return paths
 
 

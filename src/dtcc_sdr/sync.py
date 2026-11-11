@@ -149,16 +149,21 @@ def apply(
     cand: Candidate,
     fetched: dtcc.Fetched,
     manifest: Manifest,
+    *,
     data_dir: Path,
     work_dir: Path,
     summary: Summary,
-    *,
     memory_limit: str | None = None,
 ) -> str | None:
     """Fold one fetch result into ``manifest``; return the partition written, if any."""
     summary.count(fetched.outcome)
     if fetched.outcome in ("missing", "archived"):
-        log.info("fetch.unavailable", regulator=cand.regulator, day=str(cand.day), outcome=fetched.outcome)
+        log.info(
+            "fetch.unavailable",
+            regulator=cand.regulator,
+            day=str(cand.day),
+            outcome=fetched.outcome,
+        )
         return None
     if fetched.outcome == "not_modified":
         if cand.held is not None and cand.listed is not None:
@@ -204,8 +209,12 @@ def apply(
         cand.listed,
     )
     if entry.listed_rows is not None and entry.listed_rows != entry.rows:
-        summary.row_mismatches.append(f"{entry.key}: listed {entry.listed_rows}, parsed {entry.rows}")
-        log.warning("convert.row_mismatch", key=entry.key, listed=entry.listed_rows, rows=entry.rows)
+        summary.row_mismatches.append(
+            f"{entry.key}: listed {entry.listed_rows}, parsed {entry.rows}"
+        )
+        log.warning(
+            "convert.row_mismatch", key=entry.key, listed=entry.listed_rows, rows=entry.rows
+        )
     manifest.put(entry)
     log.info("convert.done", key=entry.key, rows=entry.rows, replaced=cand.held is not None)
     return partition
@@ -247,7 +256,13 @@ def run(
         etag = cand.held.etag if cand.held else None
         fetched = client.fetch(cand.url, etag)
         partition = apply(
-            cand, fetched, manifest, data_dir, work_dir, summary, memory_limit=memory_limit
+            cand,
+            fetched,
+            manifest,
+            data_dir=data_dir,
+            work_dir=work_dir,
+            summary=summary,
+            memory_limit=memory_limit,
         )
         if partition:
             written[partition] = data_dir / partition

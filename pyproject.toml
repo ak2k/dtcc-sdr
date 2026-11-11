@@ -16,7 +16,8 @@ classifiers = [
 dependencies = [
     "duckdb>=1.1",
     "httpx>=0.27",
-    "huggingface-hub>=0.25",
+    # 2.x drops HfApi.upload_large_folder, which the resumable seed upload uses.
+    "huggingface-hub>=1.20,<2",
     "pydantic>=2.7",
     "pydantic-settings>=2.7",
     "stamina>=24",
@@ -80,6 +81,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # S608: tests build DuckDB SQL from tmp_path fixtures, not untrusted input.
 "tests/**" = ["S101", "D", "ANN", "PLR2004", "S608"]
+
+[tool.ruff.lint.flake8-type-checking]
+# Pydantic resolves field annotations at runtime.
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

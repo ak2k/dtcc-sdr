@@ -1,0 +1,67 @@
+name: Sync DTCC
+
+on:
+  schedule:
+    # DTCC writes the prior day's cumulative files at about 00:15 UTC.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: "Skip the PPD listing and probe each day from the recheck start"
+        type: boolean
+        default: false
+      recheck_days:
+        description: "Days before the newest held file to re-check for reposts"
+        required: false
+        default: "30"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+      - ".github/workflows/sync.yml"
+
+# Only the HF push needs credentials; the repo itself is read-only here.
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-dtcc
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # A probe run over a 30-day recheck is ~93 paced requests; a catch-up after
+    # a long outage converts at most a few hundred small files.
+    timeout-minutes: 30
+    env:
+      HF_REPO_ID: ${{ vars.HF_REPO_ID }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      RECHECK_DAYS: ${{ github.event.inputs.recheck_days || '30' }}
+      LOG_JSON: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - name: Fetch new or reposted files and commit them once
+        run: |
+          if [ "${{ github.event.inputs.probe }}" = "true" ]; then
+            uv run dtcc-sdr sync --probe
+          else
+            uv run dtcc-sdr sync
+          fi
+
+  # GitHub disables a public repo's scheduled workflows after 60 days with no
+  # repository activity. Re-enabling the workflow from its own daily run resets
+  # that clock without commits.
+  keepalive:
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/sync.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}

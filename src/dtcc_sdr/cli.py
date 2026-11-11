@@ -16,7 +16,9 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 import typer
 
-from dtcc_sdr import card, convert, dtcc, seed as seed_mod, sync as sync_mod
+from dtcc_sdr import card, convert, dtcc
+from dtcc_sdr import seed as seed_mod
+from dtcc_sdr import sync as sync_mod
 from dtcc_sdr.config import get_settings
 from dtcc_sdr.errors import ExternalServiceError
 from dtcc_sdr.hf import HfStore, LocalStore, Store
