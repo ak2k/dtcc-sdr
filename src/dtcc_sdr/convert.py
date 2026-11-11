@@ -145,7 +145,8 @@ def _select_exprs(header: list[str]) -> list[str]:
         src = _quote(source)
         out = _quote(name)
         kind = COLUMN_TYPES.get(source)
-        empty = f"NULLIF({src}, '')"
+        # Some Canadian files pad values ("25,000,000 ", a lone " " indicator).
+        empty = f"NULLIF(trim({src}), '')"
         if kind is None:
             exprs.append(f"{src} AS {out}")
         elif kind == "capped":
