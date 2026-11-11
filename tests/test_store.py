@@ -78,6 +78,10 @@ def test_card_states_source_window_and_no_warranty():
     assert "Canadian" in text
     assert "about two years" in text
     assert "no warranty" in text
+    assert "17 CFR 43.3(c)(2)" in text
+    assert "unofficial mirror, not affiliated with DTCC" in text
+    assert "license_name: cftc-part-43-public-dissemination" in text
+    assert "dtcc-terms-of-use" not in text
     assert "CFTC 2024-11-11 to 2026-11-10 (2 files)" in text
     assert "hf://datasets/me/ds/rates/" in text
 

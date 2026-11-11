@@ -17,7 +17,7 @@ daily run keeps what it fetched while it was served.
   answers 304 with no body. If the listing fails, the run probes each day from
   the recheck start, still conditionally (`--probe` forces this).
 - **One commit per run.** New or reposted partitions, the manifest and the card
-  go up in a single `create_commit`. Unchanged partitions are never rewritten;
+  go up in one `create_commit`. Unchanged partitions are never rewritten;
   a run that changes nothing commits nothing.
 - **Typed.** Column types are in `convert.COLUMN_TYPES`; casts are strict, so a
   value that does not parse fails the run rather than becoming NULL. Capped
@@ -78,5 +78,13 @@ day's files at about 00:15 UTC) and on dispatch. Configure:
 | `src/dtcc_sdr/card.py` | dataset card from the manifest |
 | `src/dtcc_sdr/cli.py` | `dtcc-sdr` CLI (typer) |
 
-The data is DTCC's public dissemination, subject to DTCC's terms of use. This
-is an unofficial mirror, provided with no warranty.
+The data is the public price dissemination of DTCC Data Repository (U.S.) LLC,
+plus the SEC and Canadian public dissemination by DTCC's repositories. CFTC
+rule 17 CFR 43.3(c)(2) requires that this data be "made available free of
+charge", and 17 CFR 43.2 defines public dissemination as making it freely
+available in a machine-readable format that can be downloaded, saved and
+analyzed. SEC files are disseminated under Regulation SBSR (17 CFR 242.902).
+Canadian files are disseminated under OSC Rule 91-507, which requires them to
+be free to the public (s. 39(3)), and the matching rules of the other
+provincial regulators. This is an unofficial mirror, not affiliated with DTCC,
+and provided with no warranty.

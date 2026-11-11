@@ -83,11 +83,20 @@ ds = load_dataset("{repo_id}", "rates", split="train", streaming=True)
 
 ## Terms, provenance and caveats
 
-The data is DTCC's public dissemination, mirrored unmodified apart from typing.
-Use of it is subject to DTCC's terms of use for the PPD site and data
-(<https://www.dtcc.com/terms>); this mirror does not grant any right that
-those terms do not. Values are as disseminated, including later corrections
-and cancellations as separate messages; notionals above the cap are capped.
+The data is the public price dissemination of DTCC Data Repository (U.S.) LLC,
+plus the SEC and Canadian public dissemination by DTCC's repositories. CFTC
+rule 17 CFR 43.3(c)(2) requires that this data be "made available free of
+charge", and 17 CFR 43.2 defines public dissemination as making it freely
+available in a machine-readable format that can be downloaded, saved and
+analyzed. SEC files are disseminated under Regulation SBSR (17 CFR 242.902).
+Canadian files are disseminated under OSC Rule 91-507, which requires them to
+be free to the public (s. 39(3)), and the matching rules of the other
+provincial regulators. This is an unofficial mirror, not affiliated with DTCC,
+and provided with no warranty.
+
+Values are as disseminated, mirrored unmodified apart from typing, including
+later corrections and cancellations as separate messages; notionals above the
+cap are capped.
 
 This dataset is provided as is, with **no warranty** of any kind, express or
 implied, including accuracy, completeness, timeliness or fitness for a
@@ -118,8 +127,8 @@ def _frontmatter() -> str:
     regulators = "\n".join(f"  # {label}" for label in _REGULATOR_LABEL.values())
     return f"""---
 license: other
-license_name: dtcc-terms-of-use
-license_link: https://www.dtcc.com/terms
+license_name: cftc-part-43-public-dissemination
+license_link: https://www.ecfr.gov/current/title-17/section-43.3
 pretty_name: DTCC public swap data (interest-rate cumulative files)
 tags:
 - finance
